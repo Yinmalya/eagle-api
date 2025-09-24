@@ -1,50 +1,29 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import 'dotenv/config';
-import cors from 'cors';
+import dotenv from 'dotenv';
+import authRoutes from './routes/auth.route.js';
+import articleRoutes from './routes/articles.js';
+import commentRoutes from './routes/comments.js';
 
-// Import Routers
-import articleRouter from './routes/articles.js';
-import authRouter from './routes/auth.route.js';
+dotenv.config();
 
-// Create an Express app
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Global Middleware
+// Middleware
 app.use(express.json());
-app.use(cors());
-
-// Connect Routes
-app.use('/api/articles', articleRouter);
-app.use('/api/auth', authRouter);
 
 // Connect to MongoDB
-const MONGO_URI = process.env.MONGO_URI;
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('MongoDB connected successfully'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
-async function connectToDatabase() {
-  try {
-    await mongoose.connect(MONGO_URI);
-    console.log('MongoDB connected successfully!');
-  } catch (err) {
-    console.error('MongoDB connection error:', err);
-    process.exit(1); // Exit with failure
-  }
-}
+// Use Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/articles', articleRoutes);
+app.use('/api/articles/:articleId/comments', commentRoutes);
 
-// A simple test route
-app.get('/', (req, res) => {
-  res.send('API is running...');
+// Start the server
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
-
-// Set the server port
-const port = process.env.PORT || 5000;
-
-// Start the server after connecting to the database
-async function startServer() {
-  await connectToDatabase();
-  app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-  });
-}
-
-startServer();
