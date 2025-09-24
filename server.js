@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.route.js';
 import articleRoutes from './routes/articles.js';
 import commentRoutes from './routes/comments.js';
+import newsletterRoutes from './routes/newsletter.js';
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/api/auth', authRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/articles/:articleId/comments', commentRoutes);
-
+app.use('/api/newsletter', newsletterRoutes);
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
