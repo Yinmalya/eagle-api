@@ -1,6 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import path from 'path'; // <-- Import path to resolve directories
+
 import authRoutes from './routes/auth.route.js';
 import articleRoutes from './routes/articles.js';
 import commentRoutes from './routes/comments.route.js';
@@ -13,6 +15,9 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
+
+// Serve uploaded files statically so images are accessible publicly
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
