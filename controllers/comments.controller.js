@@ -1,72 +1,135 @@
-import Comment from "../models/comment.js";
+import Comment from "../models/Comment.js";
 import Article from "../models/Article.js";
+import asyncHandler from "express-async-handler";
+import mongoose from "mongoose";
 
 // @desc    Create a new comment
 // @route   POST /api/articles/:articleId/comments
-// @access  Private
-export const createComment = async (req, res) => {
-  try {
-    const { content } = req.body;
-    const { articleId } = req.params;
+// @access  Public (Readers do not need to log in)
+const createComment = asyncHandler(async (req, res) => {
+  const { content } = req.body;
+  const { articleId } = req.params;
 
-    // Ensure the user is authenticated (from the auth middleware)
-    if (!req.user) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
-    // Find the article to ensure it exists
-    const article = await Article.findById(articleId);
-    if (!article) {
-      return res.status(404).json({ message: "Article not found" });
-    }
-
-    // Create the new comment
-    const newComment = new Comment({
-      content,
-      author: req.user._id,
-      article: articleId,
-    });
-
-    const comment = await newComment.save();
-
-    // Add the new comment's ID to the article's comments array
-    article.comments.push(comment._id);
-    await article.save();
-
-    res.status(201).json({
-      message: "Comment created successfully",
-      comment,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+  if (!content) {
+    res.status(400);
+    throw new Error("Comment content is required");
   }
-};
+
+  if (!mongoose.Types.ObjectId.isValid(articleId)) {
+    res.status(400);
+    throw new Error("Invalid article ID");
+  }
+
+  const article = await Article.findById(articleId);
+
+  if (!article) {
+    res.status(404);
+    throw new Error("Article not found");
+  }
+
+  // Since users don't need to log in, we'll assign a placeholder or anonymous ID.
+  // NOTE: For now, we'll use a placeholder/dummy author ID until we implement
+  // a way for anonymous users to be tracked, or we can use the req.user.id if protect is added later.
+  // Since we removed 'protect', we must ensure req.user.id is not accessed.
+  // For this demonstration, we'll temporarily use the article author ID as a fallback,
+  // but in a real app, this should be handled by a unique session ID for anonymous users.
+  const authorId = req.user ? req.user.id : article.author;
+
+  // Create the comment
+  const comment = new Comment({
+    content,
+    author: authorId,
+    article: articleId,
+  });
+
+  const createdComment = await comment.save();
+
+  // Link the comment to the article
+  article.comments.push(createdComment._id);
+  await article.save();
+
+  res.status(201).json({
+    message: "Comment created successfully",
+    comment: createdComment,
+  });
+});
 
 // @desc    Get all comments for a specific article
 // @route   GET /api/articles/:articleId/comments
 // @access  Public
-export const getCommentsForArticle = async (req, res) => {
-  try {
-    const { articleId } = req.params;
+const getCommentsForArticle = asyncHandler(async (req, res) => {
+  const { articleId } = req.params;
 
-    // Find the article and populate its comments
-    const article = await Article.findById(articleId).populate({
-      path: "comments",
-      select: "content author createdAt",
-      populate: {
-        path: "author",
-        select: "username",
-      },
-    });
-
-    if (!article) {
-      return res.status(404).json({ message: "Article not found" });
-    }
-
-    res.status(200).json({ comments: article.comments });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+  if (!mongoose.Types.ObjectId.isValid(articleId)) {
+    res.status(400);
+    throw new Error("Invalid article ID");
   }
-};
+
+  const comments = await Comment.find({ article: articleId })
+    .sort({ createdAt: -1 })
+    .select("-__v"); // Exclude the version key
+
+  if (!comments) {
+    res.status(404);
+    throw new Error("No comments found for this article");
+  }
+
+  res.status(200).json(comments);
+});
+
+// @desc    Update a comment
+// @route   PUT /api/articles/:articleId/comments/:id
+// @access  Private/Admin (Will be updated to be Admin or original author later)
+const updateComment = asyncHandler(async (req, res) => {
+  const { id } = req.params; // The comment ID
+  const { content } = req.body;
+
+  const comment = await Comment.findById(id);
+
+  if (!comment) {
+    res.status(404);
+    throw new Error("Comment not found");
+  }
+
+  // Basic authorization check: Only the comment author can update it (for now)
+  if (comment.author.toString() !== req.user.id.toString()) {
+    res.status(403);
+    throw new Error("Not authorized to update this comment");
+  }
+
+  comment.content = content || comment.content;
+  const updatedComment = await comment.save();
+
+  res.json({
+    message: "Comment updated successfully",
+    comment: updatedComment,
+  });
+});
+
+// @desc    Delete a comment
+// @route   DELETE /api/articles/:articleId/comments/:id
+// @access  Private/Admin (Will be updated to be Admin only, or Admin/Author)
+const deleteComment = asyncHandler(async (req, res) => {
+  const { id } = req.params; // The comment ID
+
+  const comment = await Comment.findById(id);
+
+  if (!comment) {
+    res.status(404);
+    throw new Error("Comment not found");
+  }
+
+  // Current authorization check (to be updated for Admin):
+  // Only the comment author can delete it.
+  if (comment.author.toString() !== req.user.id.toString()) {
+    res.status(403);
+    throw new Error("Not authorized to delete this comment");
+  }
+
+  await comment.deleteOne();
+
+  res.json({ message: "Comment deleted successfully" });
+});
+
+// Export all functions for use in the router
+export { createComment, getCommentsForArticle, updateComment, deleteComment };

@@ -1,52 +1,57 @@
-import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
-    unique: true, // Ensures no two users can have the same username
+    unique: true,
     trim: true,
-  },
-  password: {
-    type: String,
-    required: true,
   },
   email: {
     type: String,
     required: true,
     unique: true,
-    lowercase: true,
-    trim: true,
+  },
+  password: {
+    type: String,
+    required: true,
+  },
+  role: {
+    type: String,
+    enum: ["reader", "contributor", "admin"],
+    default: "reader",
   },
   createdAt: {
     type: Date,
     default: Date.now,
   },
+
+  // 🔐 Fields for password reset
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
 });
 
-// Pre-save hook to hash the password before saving a new user
-userSchema.pre('save', async function (next) {
-  // Check if the password has been modified
-  if (!this.isModified('password')) {
+// 🔐 Hash password before saving (only if modified or new)
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) {
     return next();
   }
 
-  // Hash the password with a salt round of 10
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
+    return next();
+  } catch (err) {
+    return next(err);
   }
 });
 
-// Method to compare a given password with the stored hashed password
+// ✅ Password comparison method
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 export default User;
