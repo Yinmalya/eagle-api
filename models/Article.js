@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const ArticleSchema = new mongoose.Schema({
   title: {
@@ -32,10 +32,10 @@ const ArticleSchema = new mongoose.Schema({
   comments: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Comment',
+      ref: "Comment",
     },
   ],
 });
 
-const Article = mongoose.model('Article', ArticleSchema);
+const Article = mongoose.model("Article", ArticleSchema);
 export default Article;

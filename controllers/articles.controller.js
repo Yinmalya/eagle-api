@@ -38,7 +38,9 @@ const createArticle = asyncHandler(async (req, res) => {
   if (!title || !content) {
     if (req.files) {
       // Optional: Add cleanup logic here for uploaded files on Cloudinary if needed
-      console.log("Files uploaded but article data missing. Should clean up files.");
+      console.log(
+        "Files uploaded but article data missing. Should clean up files."
+      );
     }
     return res.status(400).json({
       message: "Please include a title and content for the article.",

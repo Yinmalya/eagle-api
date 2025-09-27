@@ -1,5 +1,5 @@
-import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema({
   username: {
@@ -19,8 +19,8 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['reader', 'contributor', 'admin'],
-    default: 'reader',
+    enum: ["reader", "contributor", "admin"],
+    default: "reader",
   },
   createdAt: {
     type: Date,
@@ -32,10 +32,9 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpires: Date,
 });
 
-
 // 🔐 Hash password before saving (only if modified or new)
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) {
     return next();
   }
 
@@ -48,12 +47,11 @@ userSchema.pre('save', async function (next) {
   }
 });
 
-
 // ✅ Password comparison method
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 export default User;
