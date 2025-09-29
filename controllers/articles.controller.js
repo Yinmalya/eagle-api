@@ -2,119 +2,144 @@ import asyncHandler from "express-async-handler";
 import Article from "../models/Article.js";
 import User from "../models/User.js";
 
-// @desc    Get all articles
-// @route   GET /api/articles
-// @access  Public
+/**
+ * @desc    Get all articles (search, author filter & pagination)
+ * @route   GET /api/articles
+ * @access  Public
+ *
+ * Query Parameters:
+ *   ?search=keyword        -> text search in title OR content
+ *   ?author=username       -> filter by author username
+ *   ?page=1&limit=10       -> pagination
+ */
 const getAllArticles = asyncHandler(async (req, res) => {
-  const articles = await Article.find({}).populate("comments");
-  res.status(200).json(articles);
+  const { search, author, page = 1, limit = 10 } = req.query;
+
+  // ----- NEW: dynamic MongoDB query -----
+  const query = {};
+  if (search) {
+    const regex = new RegExp(search, "i");
+    query.$or = [{ title: regex }, { content: regex }];
+  }
+  if (author) {
+    query.author = { $regex: author, $options: "i" };
+  }
+
+  const pageNum = Number(page) || 1;
+  const pageSize = Number(limit) || 10;
+  const skip = (pageNum - 1) * pageSize;
+
+  const total = await Article.countDocuments(query);
+  const articles = await Article.find(query)
+    .populate("comments")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(pageSize);
+
+  res.status(200).json({
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / pageSize),
+    results: articles.length,
+    articles,
+  });
 });
 
-// @desc    Get single article
-// @route   GET /api/articles/:id
-// @access  Public
+/**
+ * @desc    Get a single article
+ * @route   GET /api/articles/:id
+ * @access  Public
+ */
 const getArticle = asyncHandler(async (req, res) => {
-  const article = await Article.findById(req.params.id);
+  const article = await Article.findById(req.params.id);
+  if (!article) {
+    return res.status(404).json({ message: "Article not found" });
+  }
 
-  if (article) {
-    await article.populate({
-      path: "comments",
-      select: "content author createdAt",
-      populate: { path: "author", select: "username" },
-    });
+  await article.populate({
+    path: "comments",
+    select: "content author createdAt",
+    populate: { path: "author", select: "username" },
+  });
 
-    res.status(200).json(article);
-  } else {
-    res.status(404).json({ message: "Article not found" });
-  }
+  res.status(200).json(article);
 });
 
-// @desc    Create a new article
-// @route   POST /api/articles
-// @access  Private (Admin or Contributor)
+/**
+ * @desc    Create a new article
+ * @route   POST /api/articles
+ * @access  Private (Admin or Contributor)
+ */
 const createArticle = asyncHandler(async (req, res) => {
-  // Extract title, content, and the text-based videoUrl from req.body
-  const { title, content, videoUrl } = req.body;
+  const { title, content, videoUrl } = req.body;
 
-  if (!title || !content) {
-    return res.status(400).json({
-      message: "Please include a title and content for the article.",
-    });
-  }
+  if (!title || !content) {
+    return res
+      .status(400)
+      .json({ message: "Please include a title and content for the article." });
+  }
 
-  // Get the user object using the ID from the token payload (req.user.id)
-  const user = await User.findById(req.user.id || req.user._id);
+  const user = await User.findById(req.user.id || req.user._id);
+  if (!user) {
+    return res
+      .status(401)
+      .json({ message: "User not found or token invalid." });
+  }
 
-  if (!user) {
-    return res.status(401).json({ message: "User not found or token invalid." });
-  }
+  const imageUrls = req.files?.length ? req.files.map((f) => f.path) : [];
 
-  // Map the array of file objects to get the Cloudinary path (URL)
-  let imageUrls = [];
-  if (req.files && req.files.length > 0) {
-    // .path contains the secure Cloudinary URL after a successful upload
-    imageUrls = req.files.map((file) => file.path); 
-  }
+  const newArticle = new Article({
+    title,
+    content,
+    author: user.username,
+    imageUrls,
+    videoUrl: videoUrl || undefined,
+  });
 
-  const newArticle = new Article({
-    title,
-    content,
-    author: user.username,
-    imageUrls: imageUrls, 
-    videoUrl: videoUrl || undefined, 
-  });
-
-  const createdArticle = await newArticle.save();
-  res.status(201).json(createdArticle);
+  const createdArticle = await newArticle.save();
+  res.status(201).json(createdArticle);
 });
 
-// @desc    Update an article
-// @route   PUT /api/articles/:id
-// @access  Private (Admin or Contributor)
+/**
+ * @desc    Update an article
+ * @route   PUT /api/articles/:id
+ * @access  Private (Admin or Contributor)
+ */
 const updateArticle = asyncHandler(async (req, res) => {
-  // Destructure all possible fields, including the text-based videoUrl
-  const { title, content, videoUrl } = req.body;
-  const article = await Article.findById(req.params.id);
+  const { title, content, videoUrl } = req.body;
+  const article = await Article.findById(req.params.id);
+  if (!article) {
+    return res.status(404).json({ message: "Article not found" });
+  }
 
-  if (!article) {
-    return res.status(404).json({ message: "Article not found" });
-  }
+  article.title = title || article.title;
+  article.content = content || article.content;
+  if (videoUrl !== undefined) article.videoUrl = videoUrl;
+  if (req.files?.length) article.imageUrls = req.files.map((f) => f.path);
 
-  article.title = title || article.title;
-  article.content = content || article.content;
-   
-  // Update the text-based video URL if provided in the body
-  if (videoUrl !== undefined) {
-    article.videoUrl = videoUrl;
-  }
-
-  // Update images if new files uploaded
-  if (req.files && req.files.length > 0) {
-    article.imageUrls = req.files.map((file) => file.path);
-  }
-
-  const updatedArticle = await article.save();
-  res.status(200).json(updatedArticle);
+  const updatedArticle = await article.save();
+  res.status(200).json(updatedArticle);
 });
 
-// @desc    Delete an article
-// @route   DELETE /api/articles/:id
-// @access  Private (Admin or Contributor)
+/**
+ * @desc    Delete an article
+ * @route   DELETE /api/articles/:id
+ * @access  Private (Admin or Contributor)
+ */
 const deleteArticle = asyncHandler(async (req, res) => {
-  const article = await Article.findById(req.params.id);
+  const article = await Article.findById(req.params.id);
+  if (!article) {
+    return res.status(404).json({ message: "Article not found" });
+  }
 
-  if (!article) {
-    return res.status(404).json({ message: "Article not found" });
-  }
-
-  await Article.deleteOne({ _id: article._id });
-  res.status(200).json({ message: "Article removed" });
+  await Article.deleteOne({ _id: article._id });
+  res.status(200).json({ message: "Article removed" });
 });
 
 export {
-  getAllArticles,
-  getArticle,
-  createArticle,
-  updateArticle,
-  deleteArticle,
+  getAllArticles,
+  getArticle,
+  createArticle,
+  updateArticle,
+  deleteArticle,
 };

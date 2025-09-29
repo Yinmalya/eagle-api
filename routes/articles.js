@@ -1,41 +1,69 @@
-import express from 'express';
+import express from "express";
 import {
-  getAllArticles, // Changed alias from getArticles to getAllArticles
+  getAllArticles,
   createArticle,
   getArticle,
   updateArticle,
   deleteArticle,
-} from '../controllers/articles.controller.js';
-import { protect } from '../middleware/authMiddleware.js';
-import { isContributorOrAdmin } from '../middleware/authzMiddleware.js'; // Import authorization
-import { imageUpload } from '../middleware/UploadMiddleware.js'; // Import image upload middleware
-import commentsRouter from './comments.route.js';
+} from "../controllers/articles.controller.js";
+import { protect } from "../middleware/authMiddleware.js";
+import { isContributorOrAdmin } from "../middleware/authzMiddleware.js";
+import { imageUpload } from "../middleware/UploadMiddleware.js";
+import commentsRouter from "./comments.route.js";
 
 const router = express.Router();
 
-// Get all articles
-router.get('/', getAllArticles); // Updated function call
+/**
+ * @route   GET /api/articles
+ * @desc    Get all articles with optional search/filter/pagination
+ * @access  Public
+ * Query params: ?search=term&page=1&limit=10
+ */
+router.get("/", getAllArticles);
 
-// Create a new article
-// Use imageUpload.array() to handle up to 5 images on the 'images' field
+/**
+ * @route   POST /api/articles
+ * @desc    Create a new article (supports up to 5 images)
+ * @access  Private (Admin or Contributor)
+ */
 router.post(
-  '/', 
-  protect, 
-  isContributorOrAdmin, // ADDED: Authorization check
-  imageUpload.array('images', 5), // ADDED: Multer middleware for file upload
+  "/",
+  protect,
+  isContributorOrAdmin,
+  imageUpload.array("images", 5),
   createArticle
 );
 
-// Get a single article
-router.get('/:id', getArticle);
+/**
+ * @route   GET /api/articles/:id
+ * @desc    Get single article by ID
+ * @access  Public
+ */
+router.get("/:id", getArticle);
 
-// Update an article
-router.patch('/:id', protect, isContributorOrAdmin, updateArticle); // ADDED: Authorization check
+/**
+ * @route   PUT /api/articles/:id
+ * @desc    Update an article (text, videoUrl, optional images)
+ * @access  Private (Admin or Contributor)
+ */
+router.put(
+  "/:id",
+  protect,
+  isContributorOrAdmin,
+  imageUpload.array("images", 5), // allow updating images too
+  updateArticle
+);
 
-// Delete an article
-router.delete('/:id', protect, isContributorOrAdmin, deleteArticle); // ADDED: Authorization check
+/**
+ * @route   DELETE /api/articles/:id
+ * @desc    Delete an article
+ * @access  Private (Admin or Contributor)
+ */
+router.delete("/:id", protect, isContributorOrAdmin, deleteArticle);
 
-// Nested comments router
-router.use('/:articleId/comments', commentsRouter);
+/**
+ * Nested comments routes: /api/articles/:articleId/comments
+ */
+router.use("/:articleId/comments", commentsRouter);
 
 export default router;

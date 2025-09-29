@@ -7,14 +7,21 @@ const CommentSchema = new Schema({
         required: true,
         trim: true
     },
-    // CHANGED: The author field is now OPTIONAL (required: false) 
-    // to allow comments without a user login.
+    // The author field is now OPTIONAL to allow comments without a user login.
     author: {
         type: Schema.Types.ObjectId,
         ref: 'User', // Reference to the User model
         required: false
     },
-    // ADDED: A temporary field for anonymous commenters to provide a name/alias
+    // ADDED: Required email for all commenters (anonymous or not)
+    email: {
+        type: String,
+        required: true,
+        trim: true,
+        lowercase: true,
+        // Note: We don't make this 'unique' because one user/email might comment many times.
+    },
+    // A display name field for anonymous commenters
     username: {
         type: String,
         required: function() {
