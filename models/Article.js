@@ -15,7 +15,13 @@ const ArticleSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  // Array of image URLs
+  // NEW: Article category
+  category: {
+    type: String,
+    enum: ["sports", "entertainment", "politics", "business", "tech", "other"],
+    required: true,
+    trim: true,
+  },
   imageUrls: {
     type: [String],
     default: [],
@@ -23,7 +29,6 @@ const ArticleSchema = new mongoose.Schema({
   videoUrl: {
     type: String,
     trim: true,
-    required: false,
   },
   createdAt: {
     type: Date,
