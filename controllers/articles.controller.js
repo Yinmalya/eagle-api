@@ -3,19 +3,19 @@ import Article from "../models/Article.js";
 import User from "../models/User.js";
 
 /**
- * @desc    Get all articles (search, author filter & pagination)
+ * @desc    Get all articles (search, author, category filter & pagination)
  * @route   GET /api/articles
  * @access  Public
  *
  * Query Parameters:
- *   ?search=keyword        -> text search in title OR content
- *   ?author=username       -> filter by author username
- *   ?page=1&limit=10       -> pagination
+ *   ?search=keyword         -> text search in title OR content
+ *   ?author=username        -> filter by author username
+ *   ?category=sports        -> filter by category
+ *   ?page=1&limit=10        -> pagination
  */
 const getAllArticles = asyncHandler(async (req, res) => {
-  const { search, author, page = 1, limit = 10 } = req.query;
+  const { search, author, category, page = 1, limit = 10 } = req.query;
 
-  // ----- NEW: dynamic MongoDB query -----
   const query = {};
   if (search) {
     const regex = new RegExp(search, "i");
@@ -23,6 +23,9 @@ const getAllArticles = asyncHandler(async (req, res) => {
   }
   if (author) {
     query.author = { $regex: author, $options: "i" };
+  }
+  if (category) {
+    query.category = { $regex: category, $options: "i" }; // case-insensitive
   }
 
   const pageNum = Number(page) || 1;
@@ -71,12 +74,12 @@ const getArticle = asyncHandler(async (req, res) => {
  * @access  Private (Admin or Contributor)
  */
 const createArticle = asyncHandler(async (req, res) => {
-  const { title, content, videoUrl } = req.body;
+  const { title, content, videoUrl, category } = req.body;
 
-  if (!title || !content) {
-    return res
-      .status(400)
-      .json({ message: "Please include a title and content for the article." });
+  if (!title || !content || !category) {
+    return res.status(400).json({
+      message: "Please include a title, content, and category for the article.",
+    });
   }
 
   const user = await User.findById(req.user.id || req.user._id);
@@ -91,6 +94,7 @@ const createArticle = asyncHandler(async (req, res) => {
   const newArticle = new Article({
     title,
     content,
+    category, // <-- new field
     author: user.username,
     imageUrls,
     videoUrl: videoUrl || undefined,
@@ -106,7 +110,7 @@ const createArticle = asyncHandler(async (req, res) => {
  * @access  Private (Admin or Contributor)
  */
 const updateArticle = asyncHandler(async (req, res) => {
-  const { title, content, videoUrl } = req.body;
+  const { title, content, videoUrl, category } = req.body;
   const article = await Article.findById(req.params.id);
   if (!article) {
     return res.status(404).json({ message: "Article not found" });
@@ -115,6 +119,7 @@ const updateArticle = asyncHandler(async (req, res) => {
   article.title = title || article.title;
   article.content = content || article.content;
   if (videoUrl !== undefined) article.videoUrl = videoUrl;
+  if (category !== undefined) article.category = category;
   if (req.files?.length) article.imageUrls = req.files.map((f) => f.path);
 
   const updatedArticle = await article.save();
