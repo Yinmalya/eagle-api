@@ -7,13 +7,13 @@ import authRoutes from "./routes/auth.route.js";
 import articleRoutes from "./routes/articles.js";
 import commentRoutes from "./routes/comments.route.js";
 import newsletterRoutes from "./routes/newsletter.js";
+import userProfileRoutes from "./routes/userRoutes.js";
 
 dotenv.config();
 console.log("Cloudinary ENV vars:");
 console.log("CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME);
 console.log("API_KEY:", process.env.CLOUDINARY_API_KEY);
 console.log("API_SECRET:", process.env.CLOUDINARY_API_SECRET);
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +35,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/articles", articleRoutes);
 app.use("/api/articles", commentRoutes);
 app.use("/api/newsletter", newsletterRoutes);
+app.use("/api/users", userProfileRoutes);
 
 app.get("/", (req, res) => {
   res.send("Welcome to the Eagle API!");
