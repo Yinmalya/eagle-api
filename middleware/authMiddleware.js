@@ -43,3 +43,18 @@ export const protect = asyncHandler(async (req, res, next) => {
     res.status(401).json({ message: "Not authorized, no token" });
   }
 });
+
+// Middleware to restrict access based on user role(s)
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    // Check if the user's role (attached by the 'protect' middleware)
+    // is included in the authorized roles array passed to the middleware
+    if (!roles.includes(req.user.role)) {
+      // 403 Forbidden error
+      return res.status(403).json({
+        message: `User role ${req.user.role} is not authorized to access this route`,
+      });
+    }
+    next();
+  };
+};
