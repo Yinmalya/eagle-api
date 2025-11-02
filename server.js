@@ -1,7 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import path from "path"; // <-- Import path to resolve directories
+
 
 import authRoutes from "./routes/auth.route.js";
 import articleRoutes from "./routes/articles.js";
@@ -14,9 +14,9 @@ dotenv.config();
 console.log("Cloudinary ENV vars:");
 console.log("CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME);
 
-
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 
 // Middleware
 app.use(express.json());
