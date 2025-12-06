@@ -1,32 +1,14 @@
 import asyncHandler from "express-async-handler";
 import Article from "../models/Article.js";
-import User from "../models/User.js";
+import User from "../models/user.js";
 
-/**
- * @desc    Get all articles (search, author, category filter & pagination)
- * @route   GET /api/articles
- * @access  Public
- *
- * Query Parameters:
- *   ?search=keyword         -> text search in title OR content
- *   ?author=username        -> filter by author username
- *   ?category=sports        -> filter by category
- *   ?page=1&limit=10        -> pagination
- */
+// GET /api/articles
 const getAllArticles = asyncHandler(async (req, res) => {
   const { search, author, category, page = 1, limit = 10 } = req.query;
-
   const query = {};
-  if (search) {
-    const regex = new RegExp(search, "i");
-    query.$or = [{ title: regex }, { content: regex }];
-  }
-  if (author) {
-    query.author = { $regex: author, $options: "i" };
-  }
-  if (category) {
-    query.category = { $regex: category, $options: "i" }; // case-insensitive
-  }
+  if (search) query.$or = [{ title: { $regex: search, $options: "i" } }, { content: { $regex: search, $options: "i" } }];
+  if (author) query.author = { $regex: author, $options: "i" };
+  if (category) query.category = { $regex: category, $options: "i" };
 
   const pageNum = Number(page) || 1;
   const pageSize = Number(limit) || 10;
@@ -38,7 +20,7 @@ const getAllArticles = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(pageSize);
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee5rtttttttttttttttttttttttttttttttttt65
+
   res.status(200).json({
     total,
     page: pageNum,
@@ -48,73 +30,50 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee5rttttttttt
   });
 });
 
-/**
- * @desc    Get a single article
- * @route   GET /api/articles/:id
- * @access  Public
- */
+// GET /api/articles/:id
 const getArticle = asyncHandler(async (req, res) => {
   const article = await Article.findById(req.params.id);
-  if (!article) {
-    return res.status(404).json({ message: "Article not found" });
-  }
+  if (!article) return res.status(404).json({ message: "Article not found" });
 
   await article.populate({
     path: "comments",
-    select: "content author createdAt",
+    select: "content author createdAt username email",
     populate: { path: "author", select: "username" },
   });
 
   res.status(200).json(article);
 });
 
-/**
- * @desc    Create a new article
- * @route   POST /api/articles
- * @access  Private (Admin or Contributor)
- */
+// POST /api/articles
 const createArticle = asyncHandler(async (req, res) => {
   const { title, content, videoUrl, category } = req.body;
-
   if (!title || !content || !category) {
-    return res.status(400).json({
-      message: "Please include a title, content, and category for the article.",
-    });
+    return res.status(400).json({ message: "Please include title, content and category" });
   }
 
   const user = await User.findById(req.user.id || req.user._id);
-  if (!user) {
-    return res
-      .status(401)
-      .json({ message: "User not found or token invalid." });
-  }
+  if (!user) return res.status(401).json({ message: "User not found" });
 
   const imageUrls = req.files?.length ? req.files.map((f) => f.path) : [];
 
   const newArticle = new Article({
     title,
     content,
-    category, // <-- new field
+    category,
     author: user.username,
     imageUrls,
     videoUrl: videoUrl || undefined,
   });
 
-  const createdArticle = await newArticle.save();
-  res.status(201).json(createdArticle);
+  const created = await newArticle.save();
+  res.status(201).json(created);
 });
 
-/**
- * @desc    Update an article
- * @route   PUT /api/articles/:id
- * @access  Private (Admin or Contributor)
- */
+// PUT /api/articles/:id
 const updateArticle = asyncHandler(async (req, res) => {
   const { title, content, videoUrl, category } = req.body;
   const article = await Article.findById(req.params.id);
-  if (!article) {
-    return res.status(404).json({ message: "Article not found" });
-  }
+  if (!article) return res.status(404).json({ message: "Article not found" });
 
   article.title = title || article.title;
   article.content = content || article.content;
@@ -122,29 +81,17 @@ const updateArticle = asyncHandler(async (req, res) => {
   if (category !== undefined) article.category = category;
   if (req.files?.length) article.imageUrls = req.files.map((f) => f.path);
 
-  const updatedArticle = await article.save();
-  res.status(200).json(updatedArticle);
+  const updated = await article.save();
+  res.status(200).json(updated);
 });
 
-/**
- * @desc    Delete an article
- * @route   DELETE /api/articles/:id
- * @access  Private (Admin or Contributor)
- */
+// DELETE /api/articles/:id
 const deleteArticle = asyncHandler(async (req, res) => {
   const article = await Article.findById(req.params.id);
-  if (!article) {
-    return res.status(404).json({ message: "Article not found" });
-  }
+  if (!article) return res.status(404).json({ message: "Article not found" });
 
   await Article.deleteOne({ _id: article._id });
   res.status(200).json({ message: "Article removed" });
 });
 
-export {
-  getAllArticles,
-  getArticle,
-  createArticle,
-  updateArticle,
-  deleteArticle,
-};
+export { getAllArticles, getArticle, createArticle, updateArticle, deleteArticle };

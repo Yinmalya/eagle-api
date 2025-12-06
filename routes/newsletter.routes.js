@@ -1,7 +1,7 @@
-import { Router } from "express";
+import express from "express";
 import { subscribeToNewsletter } from "../controllers/newsletter.controller.js";
 
-const router = Router();
+const router = express.Router();
 
 router.post("/subscribe", subscribeToNewsletter);
 
