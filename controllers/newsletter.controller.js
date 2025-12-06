@@ -1,32 +1,18 @@
-import Subscriber from "../models/Subscriber.js";
+import Subscriber from "../models/subscriber.js";
 
-const subscribeToNewsletter = async (req, res) => {
+export const subscribeToNewsletter = async (req, res) => {
   const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
-  }
+  if (!email) return res.status(400).json({ message: "Email is required" });
 
   try {
-    const existingSubscriber = await Subscriber.findOne({ email });
+    const existing = await Subscriber.findOne({ email });
+    if (existing) return res.status(409).json({ message: "Email already subscribed" });
 
-    if (existingSubscriber) {
-      return res.status(409).json({ message: "Email is already subscribed" });
-    }
-
-    const newSubscriber = new Subscriber({ email });
-    await newSubscriber.save();
-
-    return res
-      .status(201)
-      .json({
-        message: "Successfully subscribed to the newsletter",
-        subscriber: newSubscriber,
-      });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Server error" });
+    const sub = new Subscriber({ email });
+    await sub.save();
+    res.status(201).json({ message: "Subscribed", subscriber: sub });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };
-
-export { subscribeToNewsletter };
