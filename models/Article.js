@@ -15,25 +15,31 @@ const ArticleSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  // NEW: Article category
+
+  // CATEGORY — now auto-lowercases input to avoid validation errors
   category: {
     type: String,
     enum: ["sports", "entertainment", "politics", "business", "tech", "other"],
     required: true,
     trim: true,
+    lowercase: true,   // 👈 THIS FIXES THE PROBLEM
   },
+
   imageUrls: {
     type: [String],
     default: [],
   },
+
   videoUrl: {
     type: String,
     trim: true,
   },
+
   createdAt: {
     type: Date,
     default: Date.now,
   },
+
   comments: [
     {
       type: mongoose.Schema.Types.ObjectId,

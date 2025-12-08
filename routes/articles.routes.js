@@ -8,16 +8,18 @@ import {
 } from "../controllers/articles.controller.js";
 import { protect } from "../middleware/auth.js";
 import { isContributorOrAdmin } from "../middleware/role.js";
-import { imageUpload, videoUpload } from "../middleware/upload.js";
+import { imageUpload } from "../middleware/upload.js";
 import commentsRouter from "./comments.routes.js";
 
 const router = express.Router();
 
-// public
+// -------- PUBLIC ROUTES --------
 router.get("/", getAllArticles);
 router.get("/:id", getArticle);
 
-// protected create/update/delete (contributors & admins)
+// -------- PROTECTED ROUTES (contributors & admins) --------
+
+// CREATE ARTICLE
 router.post(
   "/",
   protect,
@@ -26,6 +28,7 @@ router.post(
   createArticle
 );
 
+// FULL UPDATE (PUT)
 router.put(
   "/:id",
   protect,
@@ -34,9 +37,19 @@ router.put(
   updateArticle
 );
 
+// PARTIAL UPDATE (PATCH)
+router.patch(
+  "/:id",
+  protect,
+  isContributorOrAdmin,
+  imageUpload.array("images", 5),
+  updateArticle
+);
+
+// DELETE ARTICLE
 router.delete("/:id", protect, isContributorOrAdmin, deleteArticle);
 
-// mount comments router for /api/articles/:articleId/comments
+// -------- COMMENTS ROUTES --------
 router.use("/:articleId/comments", commentsRouter);
 
 export default router;
